@@ -20,79 +20,111 @@ STANJE_DRUGO = "STANJE_DRUGO"
 STANJE_TRECE = "STANJE_TRECE"
 
 listaNovostiIndexHr = []
+class GlavniAgent(Agent):
 
-class FSMPonasanje(FSMBehaviour):
-    async def on_start(self):
-        print(f"Agent se pokreće u početnom stanju ({self.current_state})")
+    class FSMPonasanje(FSMBehaviour):
+        async def on_start(self):
+            print(f"{GlavniAgent.__name__}: Pokrećem se ... ({self.current_state})")
 
-    async def on_end(self):
-        print(f"Agent završava s radom u {self.current_state}")
-        await self.agent.stop()
+        async def on_end(self):
+            print(f"{GlavniAgent.__name__}: Završavam s radom ... {self.current_state}")
+            await self.agent.stop()
 
-class StanjePrvo(State):
-    async def run(self):
-        print("Šaljem poruku za početak prikupljanje novosti s portala.")
-        msg = Message(to=str(self.agent.jid))
-        msg.body = "Započni s prikupljanjem novosti s portala!"
-        await self.send(msg)
-        self.set_next_state(STANJE_DRUGO)
+    class StanjePrvo(State):
+        async def run(self):
+            print(f"{GlavniAgent.__name__}: Šaljem poruku za početak prikupljanje novosti s portala ...")
+            msg = Message(to="vasprojekt2@jabber.eu.org")
+            msg.body = "Započni s prikupljanjem novosti s portala!"
+            await self.send(msg)
+            print(f"{GlavniAgent.__name__}: Poruka poslana!")
+            self.set_next_state(STANJE_DRUGO)
 
-class StanjeDrugo(State):
-    async def run(self):
-        msg = await self.receive(timeout=10)
-        print(f"Drugo stanje zaprimilo poruku sadržaja: \" {msg.body}\"")
+    class StanjeDrugo(State):
+        async def run(self):
+            print(f"{GlavniAgent.__name__}: Nalazim se u završnom stanju. Čekam na primitak poruke ...")
+            msg = await self.receive(timeout=30)
+            print(f"{GlavniAgent.__name__}: Poruka zaprimljena!")
+                    
+            if msg:
+                if msg.body != '':
+                    print(f"{GlavniAgent.__name__}: Zaprimio sam poruku sljedećeg sadržaja: \" {msg.body}\"")
+                    print(f"{GlavniAgent.__name__}: Novosti prikupljene i spremne za prikaz.")
+                    print("\n --------------------------------------------------------------------------- \n")
+                    print("\n ------------------------------ N O V O S T I ------------------------------ \n")
+                    print("\n --------------------------------------------------------------------------- \n")
 
-        addr = requests.get('https://www.index.hr/rss')
+                    counter = 1
+                    for novost in listaNovostiIndexHr:
+                        print(f"{counter}. {novost}")
+                        counter += 1
+                else:
+                    print("Nema odgovora.")
 
-        indexRSS = BeautifulSoup(addr.content, 'xml')
-        items = indexRSS.find_all('item')
-        for item in items:
-            listaNovostiIndexHr.append(f"\n\nDatum: {item.pubDate.text}.\n\nNaslov: {item.title.text}\n\nSažetak: {item.description.text}\n\nPoveznica: {item.link.text}\n\n--------------------------------------------------------------------------------")
-
-        msg = Message(to=str(self.agent.jid))
-        msg.body = "Završio s prikupljanjem novosti s portala!"
-        await self.send(msg)
-        self.set_next_state(STANJE_TRECE)
-
-class StanjeTrece(State):
-    async def run(self):
-        print("Agent se nalazi u trećem stanju (završno stanje)")
-        msg = await self.receive(timeout=5)
-                
-        if msg:
-            if msg.body != '':
-                print(f"Treće stanje zaprimilo poruku sadržaja: \" {msg.body}\"")
-                print("Novosti prikupljene i spremne za prikaz.\n")
-                print("\n --------------------------------------------------------------------------- \n")
-                print("\n ------------------------------ N O V O S T I ------------------------------ \n")
-                print("\n --------------------------------------------------------------------------- \n")
-
-                counter = 1
-                for novost in listaNovostiIndexHr:
-                    print(f"{counter}. {novost}")
-                    counter += 1
-            else:
-                print("Nema odgovora.")
-class FSMAgent(Agent):
     async def setup(self):
-        agent = FSMPonasanje()
-        agent.add_state(name=STANJE_PRVO, state=StanjePrvo(), initial=True)
-        agent.add_state(name=STANJE_DRUGO, state=StanjeDrugo())
-        agent.add_state(name=STANJE_TRECE, state=StanjeTrece())
+        agent = self.FSMPonasanje()
+        agent.add_state(name=STANJE_PRVO, state=self.StanjePrvo(), initial=True)
+        agent.add_state(name=STANJE_DRUGO, state=self.StanjeDrugo())
+        agent.add_transition(source=STANJE_PRVO, dest=STANJE_DRUGO)
+        self.add_behaviour(agent)
+
+class IndexRSS(Agent):
+
+    class FSMPonasanje(FSMBehaviour):
+        async def on_start(self):
+            print(f"{IndexRSS.__name__}: Pokrećem se ... ({self.current_state})")
+
+        async def on_end(self):
+            print(f"{IndexRSS.__name__}: Završavam s radom ... {self.current_state}")
+            await self.agent.stop()
+
+    class StanjePrvo(State):
+        async def run(self):
+            msg = await self.receive(timeout=15)
+            print(f"{IndexRSS.__name__}: Zaprimio sam poruku sadržaja: \"{msg.body}\"")
+            self.set_next_state(STANJE_DRUGO)
+
+    class StanjeDrugo(State):
+        async def run(self):
+            
+            addr = requests.get('https://www.index.hr/rss')
+
+            indexRSS = BeautifulSoup(addr.content, 'xml')
+            items = indexRSS.find_all('item')
+            for item in items:
+                listaNovostiIndexHr.append(f"\n\nDatum: {item.pubDate.text}.\n\nNaslov: {item.title.text}\n\nSažetak: {item.description.text}\n\nPoveznica: {item.link.text}\n\n--------------------------------------------------------------------------------")
+            self.set_next_state(STANJE_TRECE)
+
+    class StanjeTrece(State):
+        async def run(self):
+            print(f"{IndexRSS.__name__}: Šaljem poruku da sam završio s prikupljanjem novosti ...")
+            msg = Message(to="vasprojekt1@jabber.eu.org")
+            msg.body = "Završio s prikupljanjem novosti s portala!"
+            await self.send(msg)
+            print(f"{IndexRSS.__name__}: Poruka poslana!")
+
+    async def setup(self):
+        agent = self.FSMPonasanje()
+        agent.add_state(name=STANJE_PRVO, state=self.StanjePrvo(), initial=True)
+        agent.add_state(name=STANJE_DRUGO, state=self.StanjeDrugo())
+        agent.add_state(name=STANJE_TRECE, state=self.StanjeTrece())
         agent.add_transition(source=STANJE_PRVO, dest=STANJE_DRUGO)
         agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
         self.add_behaviour(agent)
 
 if __name__ == '__main__':
 
-    fsmagent = FSMAgent("vasprojekt1@jabber.eu.org", "123456")
-    future = fsmagent.start()
-    future.result()
+    rssagent = IndexRSS("vasprojekt2@jabber.eu.org", "135790")
+    pokretanje1 = rssagent.start()
+    pokretanje1.result()
 
-    while fsmagent.is_alive():
+    glavniAgent = GlavniAgent("vasprojekt1@jabber.eu.org", "123456")
+    pokretanje2 = glavniAgent.start()
+    pokretanje2.result()
+
+    while glavniAgent.is_alive():
         try:
             time.sleep(10)
         except KeyboardInterrupt:
-            fsmagent.stop()
             break
     print("Agent zavrsio s radom.") #[1]
+
