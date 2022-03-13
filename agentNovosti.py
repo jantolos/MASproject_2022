@@ -125,6 +125,7 @@ if __name__ == '__main__':
         try:
             time.sleep(10)
         except KeyboardInterrupt:
+            agent.stop()
             break
-    print("Agent zavrsio s radom.") #[1]
+    print("Višeagentni sustav zavrsio s radom.") #[1]
 
