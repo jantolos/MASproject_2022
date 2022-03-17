@@ -134,7 +134,10 @@ class SearchAgent(Agent):
             unos = input("Unesi pojam za pretraživanje (\"all\" - prikaz svih vijesti): ")
 
             if (unos != "all"):
-                print("Ova funkcionalnost još nije razvijena!")
+                for novost in SearchAgent.listaNovostiIndexHr:
+                        if(unos in novost):
+                            GlavniAgent.listaFiltriranihNovostiIndexHr.append(novost)
+                print("Vijesti su filtrirane!")
                 self.set_next_state(STANJE_TRECE)
             else:
                 for novost in SearchAgent.listaNovostiIndexHr:
