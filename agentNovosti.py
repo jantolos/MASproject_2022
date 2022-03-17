@@ -19,9 +19,9 @@ STANJE_PRVO = "STANJE_PRVO"
 STANJE_DRUGO = "STANJE_DRUGO"
 STANJE_TRECE = "STANJE_TRECE"
 
-listaNovostiIndexHr = []
 class GlavniAgent(Agent):
 
+    listaNovostiIndexHr = []
     class FSMPonasanje(FSMBehaviour):
         async def on_start(self):
             print(f"{GlavniAgent.__name__}: Pokrećem se ... ({self.current_state})")
@@ -47,14 +47,14 @@ class GlavniAgent(Agent):
                     
             if msg:
                 if msg.body != '':
-                    print(f"{GlavniAgent.__name__}: Zaprimio sam poruku sljedećeg sadržaja: \" {msg.body}\"")
+                    print(f"{GlavniAgent.__name__}: Zaprimio sam poruku sljedećeg sadržaja: \"{msg.body}\"")
                     print(f"{GlavniAgent.__name__}: Novosti prikupljene i spremne za prikaz.")
                     print("\n --------------------------------------------------------------------------- \n")
                     print("\n ------------------------------ N O V O S T I ------------------------------ \n")
                     print("\n --------------------------------------------------------------------------- \n")
 
                     counter = 1
-                    for novost in listaNovostiIndexHr:
+                    for novost in GlavniAgent.listaNovostiIndexHr:
                         print(f"{counter}. {novost}")
                         counter += 1
                 else:
@@ -91,7 +91,7 @@ class IndexRSS(Agent):
             indexRSS = BeautifulSoup(addr.content, 'xml')
             items = indexRSS.find_all('item')
             for item in items:
-                listaNovostiIndexHr.append(f"\n\nDatum: {item.pubDate.text}.\n\nNaslov: {item.title.text}\n\nSažetak: {item.description.text}\n\nPoveznica: {item.link.text}\n\n--------------------------------------------------------------------------------")
+                GlavniAgent.listaNovostiIndexHr.append(f"\n\nDatum: {item.pubDate.text}.\n\nNaslov: {item.title.text}\n\nSažetak: {item.description.text}\n\nPoveznica: {item.link.text}\n\n--------------------------------------------------------------------------------")
             self.set_next_state(STANJE_TRECE)
 
     class StanjeTrece(State):
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         try:
             time.sleep(10)
         except KeyboardInterrupt:
-            agent.stop()
+            glavniAgent.stop()
             break
-    print("Višeagentni sustav zavrsio s radom.") #[1]
+    print("Višeagentni sustav završio s radom.") #[1]
 
