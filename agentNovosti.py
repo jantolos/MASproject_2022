@@ -158,7 +158,6 @@ class SearchAgent(Agent):
         agent.add_transition(source=STANJE_PRVO, dest=STANJE_DRUGO)
         agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
         agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
-        agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
         self.add_behaviour(agent)
 
 if __name__ == '__main__':
