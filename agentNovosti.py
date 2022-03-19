@@ -135,8 +135,8 @@ class SearchAgent(Agent):
 
             if (unos != "all"):
                 for novost in SearchAgent.listaNovostiIndexHr:
-                        if(unos in novost):
-                            GlavniAgent.listaFiltriranihNovostiIndexHr.append(novost)
+                    if(unos in novost):
+                        GlavniAgent.listaFiltriranihNovostiIndexHr.append(novost)
                 print("Vijesti su filtrirane!")
                 self.set_next_state(STANJE_TRECE)
             else:
