@@ -148,7 +148,7 @@ Kao što je i na početku ovog rada naznačeno tematika kojom ćemo se baviti je
 
 Prije implementacije agenata potrebno je u programski kôd uključiti sve potrebne biblioteke za razvoj višeagentnog sustava na odabranu temu. Bibilioteke koje ćemo uključiti jesu \textit{spade}, \textit{beautifulsoup4}, \textit{requests}. Uključivanje u programski kôd prikazano je u sljedećem isječku:
 
-\begin{lstlisting}[language=Python]
+\begin{lstlisting}[language=Python, caption={Potrebne biblioteke}]
 import time
 
 from spade.agent import Agent
@@ -170,7 +170,7 @@ import requests
 \end{itemize}
 
 Nakon formaliziranog prikaza glavnog agenta slijedi isječak programskog kôda.
-\begin{lstlisting}[language=Python,]
+\begin{lstlisting}[language=Python, caption={Programski kôd za GlavniAgent agenta}]
 STANJE_PRVO = "STANJE_PRVO"
 STANJE_DRUGO = "STANJE_DRUGO"
 STANJE_TRECE = "STANJE_TRECE"
@@ -238,7 +238,7 @@ Foramlizirani prikaz ovog agenta u skladu s definicijom za agente kao konačne a
 \end{itemize}
 
 Nakon formaliziranog prikaza agenta slijedi isječak programskog kôda.
-\begin{lstlisting}[language=Python]
+\begin{lstlisting}[language=Python, caption={Programski kôd za IndexRSS agenta}]
 class IndexRSS(Agent):
 
     class FSMPonasanje(FSMBehaviour):
@@ -297,7 +297,7 @@ Foramlizirani prikaz ovog agenta u skladu s definicijom za agente kao konačne a
 
 Nakon formaliziranog prikaza  agenta slijedi isječak programskog kôda filtracije.
 
-\begin{lstlisting}[language=Python]
+\begin{lstlisting}[language=Python, caption={Programski kôd za SearchAgent agenta}]
 class SearchAgent(Agent):
 
 
