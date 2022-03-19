@@ -17,9 +17,9 @@ git clone https://github.com/jantolos/MASproject_2022.git
 #### Install Dependencies
 ```
 sudo apt-get install python3
+pip install spade
 pip install beautifulsoup4
 pip install requests
-pip install spade
 ```
 Go to .../MASproject_2022
 ### Run the Application
