@@ -200,4 +200,3 @@ if __name__ == '__main__':
             glavniAgent.stop()
             break
     print("Višeagentni sustav završio s radom.") #[1]
-
