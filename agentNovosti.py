@@ -41,29 +41,38 @@ class GlavniAgent(Agent):
     class StanjeDrugo(State):
         async def run(self):
             print(f"{GlavniAgent.__name__}: Nalazim se u završnom stanju. Čekam na primitak poruke ...")
-            msg = await self.receive(timeout=100)
-            print(f"{GlavniAgent.__name__}: Poruka zaprimljena!")
-                    
+            msg = await self.receive(timeout=30)
             if msg:
+                print(f"{GlavniAgent.__name__}: Poruka zaprimljena!")
                 if msg.body != '':
                     print(f"{GlavniAgent.__name__}: Zaprimio sam poruku sljedećeg sadržaja: \"{msg.body}\"")
                     print(f"{GlavniAgent.__name__}: Novosti prikupljene i spremne za prikaz.")
-                    print("\n --------------------------------------------------------------------------- \n")
-                    print("\n ------------------------------ N O V O S T I ------------------------------ \n")
-                    print("\n --------------------------------------------------------------------------- \n")
-
-                    counter = 1
-                    for novost in GlavniAgent.listaFiltriranihNovostiSPortala:
-                        print(f"{counter}. {novost}")
-                        counter += 1
+                    self.set_next_state(STANJE_TRECE)
                 else:
                     print("Nema odgovora.")
+            else:
+                print(f"{SearchAgent.__name__}: Nisam zaprimio poruku.")
+                self.set_next_state(STANJE_DRUGO)
 
+    class StanjeTrece(State):
+        async def run(self):
+            print("\n --------------------------------------------------------------------------- \n")
+            print("\n ------------------------------ N O V O S T I ------------------------------ \n")
+            print("\n --------------------------------------------------------------------------- \n")
+            
+            counter = 1
+            for novost in GlavniAgent.listaFiltriranihNovostiSPortala:
+                print(f"{counter}. {novost}")
+                counter += 1
+    
     async def setup(self):
         agent = self.FSMPonasanje()
         agent.add_state(name=STANJE_PRVO, state=self.StanjePrvo(), initial=True)
         agent.add_state(name=STANJE_DRUGO, state=self.StanjeDrugo())
+        agent.add_state(name=STANJE_TRECE, state=self.StanjeTrece())
         agent.add_transition(source=STANJE_PRVO, dest=STANJE_DRUGO)
+        agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
+        agent.add_transition(source=STANJE_DRUGO, dest=STANJE_DRUGO)
         self.add_behaviour(agent)
 
 class RSSAgent(Agent):
@@ -78,7 +87,7 @@ class RSSAgent(Agent):
 
     class StanjePrvo(State):
         async def run(self):
-            msg = await self.receive(timeout=15)
+            msg = await self.receive(timeout=15) #nevažan timeout -> automatski se poruka prima
             print(f"{RSSAgent.__name__}: Zaprimio sam poruku sadržaja: \"{msg.body}\"")
             self.set_next_state(STANJE_DRUGO)
 
@@ -86,29 +95,51 @@ class RSSAgent(Agent):
         async def run(self):
             listaAddr = []
             unos = ''
-            while(unos != "\s"):
-                unos = input("Unesi željeni RSS u obliku 'https://domain-name.xyz' (\"\\s\" - prekid unosa): ")
-                if(unos != '\s'):
-                    listaAddr.append(f"{unos}")
-                else:
-                    break
-            for adresa in listaAddr:    
-                addr = requests.get(f'{adresa}')
-                nazivPortala = adresa.split("//")[1]
-                RSSAgent = BeautifulSoup(addr.content, 'xml')
-                items = RSSAgent.find_all('item')
-                for item in items:
-                    portal = nazivPortala
-                    datum = item.pubDate.text
-                    naslov = item.title.text
-                    sazetak = item.description.text
-                    poveznica = item.link.text
-                    if(sazetak != ''):
-                        SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nSažetak: {sazetak}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------------------------------------")
+            izbornik = input("Način unosa izvora:\n 0 - Učitaj datoteku (.txt) s RSS izvorima [struktura datoteke: svaki izvor u svoj zaseban redak] (preporuka) \n 1 - direktan unos putem terminala (ograničeno vrijeme unosa) \n\n Vaš izbor: ")
+            if (izbornik == "0"):
+                putanjaDatoteke = input("Putanja do datoteke: ")
+                datoteka = open(f"{putanjaDatoteke}", "r")
+                for red in datoteka:
+                    redak = red.strip()
+                    addr = requests.get(f'{redak}')
+                    nazivPortala = redak.split("//")[1]
+                    RSSAgent = BeautifulSoup(addr.content, 'xml')
+                    items = RSSAgent.find_all('item')
+                    for item in items:
+                        portal = nazivPortala
+                        datum = item.pubDate.text
+                        naslov = item.title.text
+                        sazetak = item.description.text
+                        poveznica = item.link.text
+                        if(sazetak != ''):
+                            SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nSažetak: {sazetak}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------------------------------------")
+                        else:
+                            SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------------------------------------")
+                self.set_next_state(STANJE_TRECE)
+            else:
+                while(unos != "\s"):
+                    unos = input("Unesi željeni RSS u obliku 'https://domain-name.xyz' (\"\\s\" - prekid unosa): ")
+                    if(unos != '\s'):
+                        listaAddr.append(f"{unos}")
                     else:
-                        SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------------------------------------")
-            self.set_next_state(STANJE_TRECE)
-
+                        break
+                for adresa in listaAddr:    
+                    addr = requests.get(f'{adresa}')
+                    nazivPortala = adresa.split("//")[1]
+                    RSSAgent = BeautifulSoup(addr.content, 'xml')
+                    items = RSSAgent.find_all('item')
+                    for item in items:
+                        portal = nazivPortala
+                        datum = item.pubDate.text
+                        naslov = item.title.text
+                        sazetak = item.description.text
+                        poveznica = item.link.text
+                        if(sazetak != ''):
+                            SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nSažetak: {sazetak}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------------------------------------")
+                        else:
+                            SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------------------------------------")
+                self.set_next_state(STANJE_TRECE)
+    
     class StanjeTrece(State):
         async def run(self):
             print(f"{RSSAgent.__name__}: Šaljem poruku da sam završio s prikupljanjem novosti ...")
@@ -123,6 +154,7 @@ class RSSAgent(Agent):
         agent.add_state(name=STANJE_DRUGO, state=self.StanjeDrugo())
         agent.add_state(name=STANJE_TRECE, state=self.StanjeTrece())
         agent.add_transition(source=STANJE_PRVO, dest=STANJE_DRUGO)
+        agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
         agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
         self.add_behaviour(agent)
 
@@ -140,9 +172,13 @@ class SearchAgent(Agent):
 
     class StanjePrvo(State):
         async def run(self):
-            msg = await self.receive(timeout=50)
-            print(f"{SearchAgent.__name__}: Zaprimio sam poruku sadržaja: \"{msg.body}\"")
-            self.set_next_state(STANJE_DRUGO)
+            msg = await self.receive(timeout=15)
+            if msg:
+                print(f"{SearchAgent.__name__}: Zaprimio sam poruku sadržaja: \"{msg.body}\"")
+                self.set_next_state(STANJE_DRUGO)
+            else:
+                print(f"{SearchAgent.__name__}: Nisam zaprimio poruku.")
+                self.set_next_state(STANJE_PRVO)
             
     class StanjeDrugo(State):
         async def run(self):
@@ -174,6 +210,7 @@ class SearchAgent(Agent):
         agent.add_state(name=STANJE_PRVO, state=self.StanjePrvo(), initial=True)
         agent.add_state(name=STANJE_DRUGO, state=self.StanjeDrugo())
         agent.add_state(name=STANJE_TRECE, state=self.StanjeTrece())
+        agent.add_transition(source=STANJE_PRVO, dest=STANJE_PRVO)
         agent.add_transition(source=STANJE_PRVO, dest=STANJE_DRUGO)
         agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
         agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
