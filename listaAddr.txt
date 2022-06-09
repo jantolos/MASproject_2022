@@ -1,0 +1,3 @@
+https://express.24sata.hr/feeds/placeholder-head/rss_feed
+https://www.index.hr/rss
+https://www.24sata.hr/feeds/aktualno.xml
