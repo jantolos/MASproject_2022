@@ -56,6 +56,9 @@
 
 
 \chapter{Uvod}
+Višeagentni sustav sastoji se od više agenata za donošenje odluka koji međusobno djeluju u zajedničkom okruženju kako bi postigli zajedničke ili sukobljene ciljeve. Ovi sustavi su temeljno područje istraživanja za suvremene istraživače na području umjetne inteligencije. \cite{noauthor_multi-agent_nodate}
+
+U današnjem svijetu digitalnih tehnologija široko je područje primjene višeagentnih sustava i zaista, spektar tema na koji ih možemo primjeniti je šarolik. Uz ove okolnosti izabrati temu prikladnu za projektni zadatak nije bilo teško odabrati. Glavna inspiracija za izbor teme razvoja višeagentnog sustava bili su mi news portali. Želja mi je bila kreirati sustav koji bi mi dostavljao vijesti određenih portala po mom izboru. Kao opciju odabrao sam dohvaćanje putem RSS zapisa. Razlog izbora RSS zapisa je više nego očit. Kada želimo primjeniti scraping na podatke s interneta univerzalno na više portala, a zatim i pročistiti tekst od suvišnih informacija kao što su html/xml tagovi potrebno je imati ispred sebe standardizirani format zapisa. Iako je HTML kao jezik razvijen za standardizirani format zapisa tekstualnih dokumentata u ovom slučaju neki zapisi odskaču od standardnog pa se susrećemo sa dosta tzv. "smeća" u dohvaćenim podacima. Upravo zato standardizirani zapis vijesti i događaja na news portalima diljem interneta imamo prilike dobiti putem RSS zapisa koji smo koristili kao standardizirani izvor.
 
 \chapter{Teorijski uvod}
 U sklopu predmeta Višeagentni sustavi na diplomskom studiju Baze podataka i baze znanja Fakulteta organizacije i informatike Sveučilišta u Zagrebu potrebno je bilo osmisliti, implementirati i dokumentirati zadatak na samostalno odabranu temu. Odabrao sam temu "Agenti kao konačni automati za pregled vijesti". Između ostalog zadatak je bio da se u sklopu teme implementiramo višeagentnog sustava koja će iz javno dostupnih resursa dohvaćati vijesti i prikazivati ih korisniku.
@@ -160,13 +163,13 @@ import requests
 \end{lstlisting}
 
 \section{Implementacija agenta \textit{GlavniAgent}}
-\textit{GlavniAgent} je glavni agent našeg višeagentnog sustava. Agent se sastoji od dva stanja: \textbf{PrvoStanje} i \textbf{DrugoStanje}. U stanju \textit{PrvoStanje} agent šalje agentu \textbf{RSSAgent} poruku da krenu s radom. U stanju \textit{DrugoStanje} agent čeka potvrdu da su novosti filtrirane te prikazuju novosti koje je korisnik zatražio. Agent po ispisivanju novosti završava s radom. Foramlizirani prikaz ovog agenta u skladu s definicijom za agente kao konačne automate izgledao bi kako slijedi:
+\textit{GlavniAgent} je glavni agent našeg višeagentnog sustava. Agent se sastoji od tri stanja: \textbf{StanjePrvo}, \textbf{StanjeDrugo} i \textbf{StanjeTrece}. U stanju \textit{StanjePrvo} agent šalje agentu \textbf{RSSAgent} poruku da krenu s radom. U stanju \textit{StanjeDrugo} agent čeka potvrdu da su novosti filtrirane. U \textit{StanjeTrece} agent ispisuje traženi sadržaj u konzolu. Agent po ispisivanju novosti završava s radom. Foramlizirani prikaz ovog agenta u skladu s definicijom za agente kao konačne automate izgledao bi kako slijedi:
 
 \begin{itemize}
   \item \(\Sigma\) = $\{SaljiPoruku, CekajPoruku$\}
   \item \(\Gamma\) = $\{PorukaPoslana, PorukaPrimljena$\}
-  \item \(S\) = $\{PrvoStanje, DrugoStanje$\}
-  \item \(S_0\) = $\{PrvoStanje$\}
+  \item \(S\) = $\{StanjePrvo, StanjeDrugo, StanjeTrece$\}
+  \item \(S_0\) = $\{StanjePrvo$\}
 \end{itemize}
 
 Nakon formaliziranog prikaza glavnog agenta slijedi isječak programskog kôda.
@@ -177,7 +180,7 @@ STANJE_TRECE = "STANJE_TRECE"
 
 class GlavniAgent(Agent):
 
-    listaFiltriranihNovostiIndexHr = []
+    listaFiltriranihNovostiSPortala = []
     class FSMPonasanje(FSMBehaviour):
         async def on_start(self):
             print(f"{GlavniAgent.__name__}: Pokrećem se ... ({self.current_state})")
@@ -199,42 +202,51 @@ class GlavniAgent(Agent):
         async def run(self):
             print(f"{GlavniAgent.__name__}: Nalazim se u završnom stanju. Čekam na primitak poruke ...")
             msg = await self.receive(timeout=30)
-            print(f"{GlavniAgent.__name__}: Poruka zaprimljena!")
-                    
             if msg:
+                print(f"{GlavniAgent.__name__}: Poruka zaprimljena!")
                 if msg.body != '':
                     print(f"{GlavniAgent.__name__}: Zaprimio sam poruku sljedećeg sadržaja: \"{msg.body}\"")
                     print(f"{GlavniAgent.__name__}: Novosti prikupljene i spremne za prikaz.")
-                    print("\n -------------------------------- \n")
-                    print("\n --------- N O V O S T I -------- \n")
-                    print("\n -------------------------------- \n")
-
-                    counter = 1
-                    for novost in GlavniAgent.listaFiltriranihNovostiIndexHr:
-                        print(f"{counter}. {novost}")
-                        counter += 1
+                    self.set_next_state(STANJE_TRECE)
                 else:
                     print("Nema odgovora.")
+            else:
+                print(f"{SearchAgent.__name__}: Nisam zaprimio poruku.")
+                self.set_next_state(STANJE_DRUGO)
 
+    class StanjeTrece(State):
+        async def run(self):
+            print("\n ------------------------------------------------------- \n")
+            print("\n -------------------- N O V O S T I -------------------- \n")
+            print("\n ------------------------------------------------------- \n")
+            
+            counter = 1
+            for novost in GlavniAgent.listaFiltriranihNovostiSPortala:
+                print(f"{counter}. {novost}")
+                counter += 1
+    
     async def setup(self):
         agent = self.FSMPonasanje()
         agent.add_state(name=STANJE_PRVO, state=self.StanjePrvo(), initial=True)
         agent.add_state(name=STANJE_DRUGO, state=self.StanjeDrugo())
+        agent.add_state(name=STANJE_TRECE, state=self.StanjeTrece())
         agent.add_transition(source=STANJE_PRVO, dest=STANJE_DRUGO)
+        agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
+        agent.add_transition(source=STANJE_DRUGO, dest=STANJE_DRUGO)
         self.add_behaviour(agent)
 \end{lstlisting}
 
 \section{Implementacija agenata \textit{RSSAgent}}
-Kako bi mogli prikazivati novosti korisnicima sustava te novosti potrebno je prvo preuzeti s novinskih portala na internetu. Za to preuzimanje zadužen je agenti \textit{RSSAgent}. Kako i sam naziv govori agent će preuzimati novosti s portala Index.hr koje su na stranici pohranjene u RSS obliku. Riječ je o implementaciji koja se izvodi \textit{straightforward} a na  identičan način možemo implementirati bilo kojeg agenta samo ćemo umjesto u atribut \textit{addr} postaviti poveznicu na željeni RSS file.
+Kako bi mogli prikazivati novosti korisnicima sustava te novosti potrebno je prvo preuzeti s novinskih portala na internetu. Za to preuzimanje zadužen je \textit{RSSAgent} agent. Kako i sam naziv govori agent će preuzimati novosti s portala koje mu se zadaju kao traženi. Riječ je o implementaciji koja se izvodi \textit{straightforward}, a na identičan način možemo implementirati bilo kojeg agenta samo ćemo umjesto u atribut \textit{addr} postaviti poveznicu na željeni RSS file. Upravo iz ovog razloga iskoristili smo mogućnost da korisnik unosi sam željene portale s RSS zapisima. Korisniku je omogućeno da portale unosi ručno te se isti RSS izvori brišu po završetku rada agenta - cache memorija ili opcija učitavanja .txt file kao neke rudimentalne verzije baze podataka za čuvanje RSS izvora. 
 
-Agenata \textit{RSSAgent} je agent koji se sastoji od tri stanja: \textbf{PrvoStanje}, \textbf{DrugoStanje} i \textbf{TreceStanje}. U stanju \textit{PrvoStanje} agent čeka da primi poruku od primarnog agenta za početak rada. U stanju \textit{DrugoStanje} agent preuzima novosti iz zadanog izvora i šalje ih agentu \textit{SearchAgent}. U stanju \textit{TreceStanje} agent šalje poruku da je gotov s preuzimanjem novosti agentu \textit{SearchAgent}.
+Agenata \textit{RSSAgent} je agent koji se sastoji od tri stanja: \textbf{StanjePrvo}, \textbf{StanjeDrugo} i \textbf{StanjeTrece}. U stanju \textit{StanjePrvo} agent čeka da primi poruku od glavnog agenta za početak rada. U stanju \textbf{StanjeDrugo} agent korisniku omogućuje izbor između dva načina učitavanja RSS izvora te po učitavanju izvora počinje s preuzimanjem sadržaja s izvora. Ako vrijeme unosa RSS izvora potraje od strane korisnika duže od predviđenog vremena primitka poruke u \textbf{StanjePrvo} kod \textit{RSSAgent} povratna veza na stanju osigurava nesmetan rad sustava. Po završetku prikupljanja podataka novosti se spremaju u listu novosti \textit{SearchAgent}-a. U stanju \textbf{StanjeTrece} agent šalje poruku da je gotov s preuzimanjem novosti agentu \textit{SearchAgent}.
 Foramlizirani prikaz ovog agenta u skladu s definicijom za agente kao konačne automate izgledao bi kako slijedi:
 
 \begin{itemize}
   \item \(\Sigma\) = $\{CekajPoruku, PreuzimanjeNovosti$\}
   \item \(\Gamma\) = $\{PorukaPrimljena, NovostiPreuzete$\}
-  \item \(S\) = $\{PrvoStanje, DrugoStanje, TreceStanje$\}
-  \item \(S_0\) = $\{PrvoStanje$\}
+  \item \(S\) = $\{StanjePrvo, StanjeDrugo, StanjeTrece$\}
+  \item \(S_0\) = $\{StanjePrvo$\}
 \end{itemize}
 
 Nakon formaliziranog prikaza agenta slijedi isječak programskog kôda.
@@ -251,7 +263,7 @@ class RSSAgent(Agent):
 
     class StanjePrvo(State):
         async def run(self):
-            msg = await self.receive(timeout=15)
+            msg = await self.receive(timeout=15) #nevažan timeout -> automatski se poruka prima
             print(f"{RSSAgent.__name__}: Zaprimio sam poruku sadržaja: \"{msg.body}\"")
             self.set_next_state(STANJE_DRUGO)
 
@@ -259,29 +271,51 @@ class RSSAgent(Agent):
         async def run(self):
             listaAddr = []
             unos = ''
-            while(unos != "\s"):
-                unos = input("Unesi željeni RSS u obliku 'https://domain-name.xyz' (\"\\s\" - prekid unosa): ")
-                if(unos != '\s'):
-                    listaAddr.append(f"{unos}")
-                else:
-                    break
-            for adresa in listaAddr:    
-                addr = requests.get(f'{adresa}')
-                nazivPortala = adresa.split("//")[1]
-                RSSAgent = BeautifulSoup(addr.content, 'xml')
-                items = RSSAgent.find_all('item')
-                for item in items:
-                    portal = nazivPortala
-                    datum = item.pubDate.text
-                    naslov = item.title.text
-                    sazetak = item.description.text
-                    poveznica = item.link.text
-                    if(sazetak != ''):
-                        SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nSažetak: {sazetak}\n\nPoveznica: {poveznica}\n\n----------------------------------")
+            izbornik = input("Način unosa izvora:\n 0 - Učitaj datoteku (.txt) s RSS izvorima [struktura datoteke: svaki izvor u svoj zaseban redak] (preporuka) \n 1 - direktan unos putem terminala (ograničeno vrijeme unosa) \n\n Vaš izbor: ")
+            if (izbornik == "0"):
+                putanjaDatoteke = input("Putanja do datoteke: ")
+                datoteka = open(f"{putanjaDatoteke}", "r")
+                for red in datoteka:
+                    redak = red.strip()
+                    addr = requests.get(f'{redak}')
+                    nazivPortala = redak.split("//")[1]
+                    RSSAgent = BeautifulSoup(addr.content, 'xml')
+                    items = RSSAgent.find_all('item')
+                    for item in items:
+                        portal = nazivPortala
+                        datum = item.pubDate.text
+                        naslov = item.title.text
+                        sazetak = item.description.text
+                        poveznica = item.link.text
+                        if(sazetak != ''):
+                            SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nSažetak: {sazetak}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------")
+                        else:
+                            SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------")
+                self.set_next_state(STANJE_TRECE)
+            else:
+                while(unos != "\s"):
+                    unos = input("Unesi željeni RSS u obliku 'https://domain-name.xyz' (\"\\s\" - prekid unosa): ")
+                    if(unos != '\s'):
+                        listaAddr.append(f"{unos}")
                     else:
-                        SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nPoveznica: {poveznica}\n\n----------------------------------")
-            self.set_next_state(STANJE_TRECE)
-
+                        break
+                for adresa in listaAddr:    
+                    addr = requests.get(f'{adresa}')
+                    nazivPortala = adresa.split("//")[1]
+                    RSSAgent = BeautifulSoup(addr.content, 'xml')
+                    items = RSSAgent.find_all('item')
+                    for item in items:
+                        portal = nazivPortala
+                        datum = item.pubDate.text
+                        naslov = item.title.text
+                        sazetak = item.description.text
+                        poveznica = item.link.text
+                        if(sazetak != ''):
+                            SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nSažetak: {sazetak}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------")
+                        else:
+                            SearchAgent.listaNovostiSPortala.append(f"\n\nPortal: {portal}\n\nDatum: {datum}.\n\nNaslov: {naslov}\n\nPoveznica: {poveznica}\n\n--------------------------------------------------")
+                self.set_next_state(STANJE_TRECE)
+    
     class StanjeTrece(State):
         async def run(self):
             print(f"{RSSAgent.__name__}: Šaljem poruku da sam završio s prikupljanjem novosti ...")
@@ -297,18 +331,19 @@ class RSSAgent(Agent):
         agent.add_state(name=STANJE_TRECE, state=self.StanjeTrece())
         agent.add_transition(source=STANJE_PRVO, dest=STANJE_DRUGO)
         agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
+        agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
         self.add_behaviour(agent)
 \end{lstlisting}
 \section{Implementacija agenta \textit{SearchAgent}}
-Agent \textit{SearchAgent} kao što mu i samo ime kaže služi za pretraživanje odnosno filtraciju novosti koje su preuzete s agentom \textit{RSSAgent}. Svrha ovog agenta očituje se u funkciji filtriranja novosti relevantnih traženom pojmu. Kao i ostali agenti u ovom sustavu i ovaj se na početku inicijalizira u sustavu i postavlja u stanje čekanja. Sastoji se od tri stanja: \textbf{PrvoStanje}, \textbf{DrugoStanje} i \textbf{TreceStanje}. Stanje čekanja je stanje \textbf{PrvoStanje}. Nakon što agent završi s preuzimanjem novosti prelazi u stanje \textbf{TreceStanje} gdje se šalje zahtjev agentu \textit{SearchAgent} za pretraživanje novosti po unesenom pojmu. Nakon što je stanje \textbf{PrvoStanje} primilo poruku da je agent \textit{RSSAgent} završio s prikupljanjem novosti agent \textit{SearchAgent} prelazi u stanje \textbf{DrugoStanje} gdje prima korisnički unos za pretraživanje po određenom pojmu. Kada pretraživanje završi, a vijesti s tim pojmom budu prikupljene agent \textit{SearchAgent} prelazi u stanje \textbf{TreceStanje} i šalje poruku agentu \textit{GlavniAgent} da je gotov. Sada agent \textit{GlavniAgent} ispisuje pretražene novosti. Nakon ispisa višeagentni sustav završava s radom. 
+Agent \textit{SearchAgent} kao što mu i samo ime kaže služi za pretraživanje odnosno filtraciju novosti koje su preuzete s agentom \textit{RSSAgent}. Svrha ovog agenta očituje se u funkciji filtriranja novosti relevantnih traženom pojmu. Kao i ostali agenti u ovom sustavu i ovaj se na početku inicijalizira u sustavu i postavlja u stanje čekanja. Sastoji se od tri stanja: \textbf{StanjePrvo}, \textbf{StanjeDrugo} i \textbf{StanjeTrece}. Stanje čekanja je stanje \textbf{StanjePrvo}. Nakon što \textit{RSSAgent} agent završi s preuzimanjem novosti prelazi u stanje \textbf{StanjeTrece} gdje se šalje zahtjev agentu \textit{SearchAgent} za pretraživanje novosti po unesenom pojmu. Ako poruka ne pristigne u očekivano vrijeme povratna veza na stanju osigurava nesmetan rad sustava. Nakon što je stanje \textbf{StanjePrvo} primilo poruku da je agent \textit{RSSAgent} završio s prikupljanjem novosti agent \textit{SearchAgent} prelazi u stanje \textbf{StanjeDrugo} gdje prima korisnički unos za pretraživanje po određenom pojmu. Kada pretraživanje završi, a vijesti s tim pojmom budu prikupljene agent \textit{SearchAgent} prelazi u stanje \textbf{StanjeTrece} i šalje poruku agentu \textit{GlavniAgent} da je gotov. Sada agent \textit{GlavniAgent} ispisuje pretražene novosti. Nakon ispisa višeagentni sustav završava s radom. 
 
 Foramlizirani prikaz ovog agenta u skladu s definicijom za agente kao konačne automate izgledao bi kako slijedi:
 
 \begin{itemize}
   \item \(\Sigma\) = $\{CekajPoruku, FiltriranjeNovosti, SaljiPoruku$\}
   \item \(\Gamma\) = $\{PorukaPrimljena, NovostiFiltrirane$\}
-  \item \(S\) = $\{PrvoStanje, DrugoStanje, TreceStanje$\}
-  \item \(S_0\) = $\{PrvoStanje$\}
+  \item \(S\) = $\{StanjePrvo, StanjeDrugo, StanjeTrece$\}
+  \item \(S_0\) = $\{StanjePrvo$\}
 \end{itemize}
 
 Nakon formaliziranog prikaza  agenta slijedi isječak programskog kôda filtracije.
@@ -317,7 +352,7 @@ Nakon formaliziranog prikaza  agenta slijedi isječak programskog kôda filtraci
 class SearchAgent(Agent):
 
 
-    listaNovostiIndexHr = []
+    listaNovostiSPortala = []
     class FSMPonasanje(FSMBehaviour):
         async def on_start(self):
             print(f"{SearchAgent.__name__}: Pokrećem se ... ({self.current_state})")
@@ -329,8 +364,12 @@ class SearchAgent(Agent):
     class StanjePrvo(State):
         async def run(self):
             msg = await self.receive(timeout=15)
-            print(f"{SearchAgent.__name__}: Zaprimio sam poruku sadržaja: \"{msg.body}\"")
-            self.set_next_state(STANJE_DRUGO)
+            if msg:
+                print(f"{SearchAgent.__name__}: Zaprimio sam poruku sadržaja: \"{msg.body}\"")
+                self.set_next_state(STANJE_DRUGO)
+            else:
+                print(f"{SearchAgent.__name__}: Nisam zaprimio poruku.")
+                self.set_next_state(STANJE_PRVO)
             
     class StanjeDrugo(State):
         async def run(self):
@@ -338,14 +377,14 @@ class SearchAgent(Agent):
             unos = input("Unesi pojam za pretraživanje (\"all\" - prikaz svih vijesti): ")
 
             if (unos != "all"):
-                for novost in SearchAgent.listaNovostiIndexHr:
+                for novost in SearchAgent.listaNovostiSPortala:
                     if(unos in novost):
-                        GlavniAgent.listaFiltriranihNovostiIndexHr.append(novost)
+                        GlavniAgent.listaFiltriranihNovostiSPortala.append(novost)
                 print("Vijesti su filtrirane!")
                 self.set_next_state(STANJE_TRECE)
             else:
-                for novost in SearchAgent.listaNovostiIndexHr:
-                    GlavniAgent.listaFiltriranihNovostiIndexHr.append(f"{novost}")
+                for novost in SearchAgent.listaNovostiSPortala:
+                    GlavniAgent.listaFiltriranihNovostiSPortala.append(f"{novost}")
                     self.set_next_state(STANJE_TRECE)
 
 
@@ -362,6 +401,7 @@ class SearchAgent(Agent):
         agent.add_state(name=STANJE_PRVO, state=self.StanjePrvo(), initial=True)
         agent.add_state(name=STANJE_DRUGO, state=self.StanjeDrugo())
         agent.add_state(name=STANJE_TRECE, state=self.StanjeTrece())
+        agent.add_transition(source=STANJE_PRVO, dest=STANJE_PRVO)
         agent.add_transition(source=STANJE_PRVO, dest=STANJE_DRUGO)
         agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
         agent.add_transition(source=STANJE_DRUGO, dest=STANJE_TRECE)
@@ -370,12 +410,13 @@ class SearchAgent(Agent):
 
 \chapter{Zaključak}
 
-U ovom projektu za zadatak je bilo implementirati višeagentni sustav za preuzimmanje, filtriranje i prikazivenje novosti koristeći SPADE i  Python. Tema je bila osobni izbor svakog studenta dakle proizvoljna ali u skladu s akademskim okruženjem. Očekivanja koja sam imao od teme  na početku izrade bila jako niska jer sama svijest da pristupam radu s Python programskim jezikom mi je bila zastrašujuća. Kako je projekt išao k svome vrhuncu nadao sam se da ću negdje u dubini svoje duše zavoljeti rad u Pythonu ali to se nije dogodilo. Uz pisanje dokumentacije u \LaTeX -u sintaksa programskog jezika Python i biblioteke koje prvi put koristim su mi bili najveći izazovi ovog projekta.
+U ovom projektu za zadatak je bilo implementirati višeagentni sustav za preuzimmanje, filtriranje i prikazivenje novosti koristeći SPADE i  Python. Tema je bila osobni izbor svakog studenta dakle proizvoljna ali u skladu s akademskim okruženjem. Očekivanja koja sam imao od teme  na početku izrade bila jako niska jer sama svijest da pristupam radu s Python programskim jezikom mi je bila zastrašujuća. Kako je projekt išao k svome vrhuncu zavolio sam rad u Pythonu. Uz pisanje dokumentacije u \LaTeX -u sintaksa programskog jezika Python i biblioteke koje prvi put koristim su mi bili najveći izazovi ovog projekta.
 
 Osim na kolegiju Višeagentni sustavi do sada nisam imao prilike se susresti ovako opsežno s Python programskim jezikom tako da sam sada imao mnoge prepreke koje sam morao savladati kako bi uspješno realizirao projekt.
 
-U samoj konačnici realizirao sam mali višeagentni sustav za prikupljanje novosti. Smatram ovaj sustav dobrim početkom. Na sustavu bi se moglo još poraditi u smislu da se nadopuni još dodatnim agentima na određene stranice. Filtriranje informacija bi moglo biti malo bolje realizirano. Sustav bi mogao nadopuniti da preuzima cijele vijesti ali to bi zahtjevalo malo veću doradu. Sve u svemu zadovoljan sam rezultatom iako se moglo više i bolje.
+U samoj konačnici realizirao sam mali višeagentni sustav za prikupljanje novosti. Smatram ovaj sustav dobrim početkom. Na sustavu bi se moglo još poraditi u smislu da se nadopuni još dodatnim funkcionalnostima pogotovo kod filtriranja podataka. Dakle, filtriranje informacija bi moglo biti malo bolje realizirano. Sustav bi mogao nadopuniti inteligentnom komponentom fuzzy filtriranja kako bi prilikom pokretanja filtra vraćao i vijesti koje u sebi sadrže i deklinirane izraze.
 
+Osim navedene nadogradnje vidim mogućnost nadogradnje nakon prikaza filtriranih novosti. Ovdje bih mogao omogućiti korisniku da ima mogućnost pristupiti samoj vijesti putem linka koji joj je pridružen na način da izabere redni broj vijesti te bi se ona otvorila u zadanom pretraživaču. Sve u svemu zadovoljan sam rezultatom iako se moglo više i bolje.
 \makebackmatter
 % generira popis korištene literature, popis slika (ako je primjenjivo), popis tablica (ako je primjenjivo) i popis isječaka koda (ako je primjenjivo)
 
