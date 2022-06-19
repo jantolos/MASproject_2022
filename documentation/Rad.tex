@@ -263,7 +263,7 @@ class RSSAgent(Agent):
 
     class StanjePrvo(State):
         async def run(self):
-            msg = await self.receive(timeout=15) #nevažan timeout -> automatski se poruka prima
+            msg = await self.receive(timeout=15)
             print(f"{RSSAgent.__name__}: Zaprimio sam poruku sadržaja: \"{msg.body}\"")
             self.set_next_state(STANJE_DRUGO)
 
@@ -271,7 +271,7 @@ class RSSAgent(Agent):
         async def run(self):
             listaAddr = []
             unos = ''
-            izbornik = input("Način unosa izvora:\n 0 - Učitaj datoteku (.txt) s RSS izvorima [struktura datoteke: svaki izvor u svoj zaseban redak] (preporuka) \n 1 - direktan unos putem terminala (ograničeno vrijeme unosa) \n\n Vaš izbor: ")
+            izbornik = input("Način unosa izvora:\n 0 - Učitaj datoteku (.txt) s RSS izvorima [struktura datoteke: svaki izvor u svoj zaseban redak] (preporuka) \n 1 - direktan unos putem terminala \n\n Vaš izbor: ")
             if (izbornik == "0"):
                 putanjaDatoteke = input("Putanja do datoteke: ")
                 datoteka = open(f"{putanjaDatoteke}", "r")
